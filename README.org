@@ -1,4 +1,4 @@
 TODO: Fill out README. =)
 
 * License
-All source code is licensed under the MPL V2.0.
+All source code is licensed under the MPL v2.0.

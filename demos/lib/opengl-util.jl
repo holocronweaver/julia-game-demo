@@ -1,3 +1,5 @@
+import ModernGL
+
 function glGenOne(glGenFn)
     id = GLuint[0]
     glGenFn(1, id)
