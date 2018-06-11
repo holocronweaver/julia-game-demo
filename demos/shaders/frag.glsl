@@ -1,9 +1,10 @@
 $(get_glsl_version_string())
 
-out vec4 outColor;
-uniform vec4 color;
+in vec4 vertColor;
+out vec4 color;
 
 void main()
 {
-    outColor = color;
+    color = vertColor;
+    //outColor = vec4(1, 1, 1, 1);
 }

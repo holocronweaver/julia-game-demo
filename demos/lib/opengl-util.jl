@@ -104,7 +104,7 @@ function createcontextinfo()
     glsl = split(unsafe_string(glGetString(GL_SHADING_LANGUAGE_VERSION)), ['.', ' '])
     if length(glsl) >= 2
         glsl = VersionNumber(parse(Int, glsl[1]), parse(Int, glsl[2]))
-        GLSL_VERSION = string(glsl.major) * rpad(string(glsl.minor),2,"0")
+        GLSL_VERSION = string(glsl.major) * rpad(string(glsl.minor), 2, "0")
     else
         error("Unexpected version number string. Please report this bug! GLSL version string: $(glsl)")
     end
