@@ -10,6 +10,7 @@ using ModernGL
 using Quaternions
 if profile using ProfileView end
 include(joinpath("lib", "glfw-util.jl"))
+include(joinpath("lib", "julia-util.jl"))
 include(joinpath("lib", "opengl-util.jl"))
 # include(joinpath("lib", "transform.jl"))
 
