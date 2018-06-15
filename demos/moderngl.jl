@@ -4,26 +4,66 @@ const targetFps = 60 + 5
 const targetSecsPerFrame = 1 / targetFps
 const vsync = false
 
+const simUpdateQuantumSecs = 0.01
+const secsBetweenFpsUpdate = 2
+
 import GLFW
 using DataStructures
 using ModernGL
 using Quaternions
 if profile using ProfileView end
-include(joinpath("lib", "glfw-util.jl"))
-include(joinpath("lib", "julia-util.jl"))
-include(joinpath("lib", "opengl-util.jl"))
-# include(joinpath("lib", "transform.jl"))
 
-# Exit app control.
-exitApp = false
+include(joinpath("lib", "Renderer.jl"))
+import Renderer
 
-function modernGLDemo()
+mutable struct Pawn
+    shader::Renderer.Shader
+    mesh::Renderer.Mesh
 
-    GLFW.Init()
+    posLoc::GLuint
+    scaleLoc::GLuint
+    rotLoc::GLuint
+    # colorLoc::GLuint
 
-    window = createWindow("ModernGL Example")
+    pos::Array{GLfloat, 1}
+    scale::Array{GLfloat, 1}
+    rot::Array{GLfloat, 2}
+    # color::Array{GLfloat, 1}
 
-    # The data for our triangle.
+    orientation::Quaternion
+
+    function Pawn(shader, mesh)
+        # Get shader variable locations.
+        #TODO: Map variables? Structs?
+        positionAttribute = glGetAttribLocation(shader.program, "vertPos")
+        posLoc = glGetUniformLocation(shader.program, "worldPos")
+        scaleLoc = glGetUniformLocation(shader.program, "worldScale")
+        rotLoc = glGetUniformLocation(shader.program, "worldRot")
+        # colorLoc = glGetUniformLocation(shader.program, "color")
+
+        glEnableVertexAttribArray(positionAttribute)
+        glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false, 0, C_NULL)
+
+        new(shader, mesh,
+            posLoc, scaleLoc, rotLoc,
+            zeros(GLfloat, 3), zeros(GLfloat, 3), zeros(GLfloat, 4, 4),
+            qrotation([1, 0, 0], 0))
+    end
+end
+function update(pawn::Pawn)
+    #TODO: Find way to map game objects to their GPU data.
+    # Preferably using OpenGL mapping.
+    glUniform3fv(pawn.posLoc, 1, pawn.pos)
+    glUniform3fv(pawn.scaleLoc, 1, pawn.scale)
+    glUniformMatrix4fv(pawn.rotLoc, 1, false, pawn.rot)
+    # glUniform4fv(pawn.colorLoc, 1, pawn.color)
+end
+function render(pawn::Pawn)
+    Renderer.bind(pawn.shader)
+    Renderer.render(pawn.mesh)
+end
+
+function generatePyramid()
     const vertices = GLfloat[
         0.0  0.5  0.0
         0.5 -0.5  0.0
@@ -37,29 +77,23 @@ function modernGLDemo()
         3, 1, 2,
     ]
 
-    # Generate a vertex array and array buffer for our data.
-    vao = glGenVertexArray()
-    glBindVertexArray(vao)
-    vbo = glGenBuffer()
-    glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
-    indexBuffer = glGenBuffer()
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW)
-    glEnable(GL_CULL_FACE)
-    # Create and initialize shaders.
-    shadersDir = "shaders"
-    vertexShader = createShaderFromFile(joinpath(shadersDir, "vert.glsl"), GL_VERTEX_SHADER)
-    fragmentShader = createShaderFromFile(joinpath(shadersDir, "frag.glsl"), GL_FRAGMENT_SHADER)
-    program = createShaderProgram(vertexShader, fragmentShader)
-    glUseProgram(program)
-    positionAttribute = glGetAttribLocation(program, "vertPos")
-    glEnableVertexAttribArray(positionAttribute)
-    glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false, 0, C_NULL)
-    posLoc = glGetUniformLocation(program, "worldPos")
-    scaleLoc = glGetUniformLocation(program, "worldScale")
-    rotLoc = glGetUniformLocation(program, "worldRot")
-    # colorLoc = glGetUniformLocation(program, "color")
+    const shadersDir = "shaders"
+    pyramid = Pawn(
+        Renderer.Shader(
+            joinpath(shadersDir, "vert.glsl"),
+            joinpath(shadersDir, "frag.glsl")
+        ),
+        Renderer.Mesh(vertices, indices)
+    )
+    pyramid
+end
+
+function modernGLDemo()
+
+    window = Renderer.createWindow("ModernGL Example")
+    Renderer.init()
+
+    pyramid = generatePyramid()
 
     # Setup input key handler.
     function handleKey(key, scancode, action)
@@ -71,7 +105,7 @@ function modernGLDemo()
         end
         # if key != nothing
         if key == GLFW.KEY_SPACE
-            global exitApp = true
+            Renderer.exit()
         end
     end
     GLFW.SetKeyCallback(
@@ -79,41 +113,27 @@ function modernGLDemo()
         (_, key, scancode, action, mods) -> handleKey(key, scancode, action)
     )
     # Loop until the user closes the window.
-    orientation = qrotation([1, 0, 0], 0)
     runningSecsPerFrame = CircularBuffer{Real}(120)
-    const printFpsFreqSecs = 10
     secsSincePrintFps = 0
 
-    GLFW.SwapInterval(0)
-
-    const simUpdateQuantumSecs = 0.01
     secsSinceUpdate = simUpdateQuantumSecs
 
-    const secsBetweenFpsUpdate = 2
     secsSinceFpsUpdate = 0
 
-    while !exitApp
+    while !Renderer.exitApp
         tic()
 
         if secsSinceUpdate >= simUpdateQuantumSecs
             # Move the triangle and color.
-            pos = GLfloat[
-                # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
-                # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
-                0
-                0
-                0
-            ]
-            scale = GLfloat[
-                1
-                1
-                1
-            ]
-            orientation = qrotation([0, 1, 0], 5.0 * secsSinceUpdate) * orientation
-            rot = eye(GLfloat, 4)
-            rot[1:3, 1:3] = rotationmatrix(orientation)
+            pyramid.pos = GLfloat[0, 0, 0]
+            # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
+            # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
+            pyramid.scale = GLfloat[1, 1, 1]
+            pyramid.orientation = qrotation([0, 1, 0], 5.0 * secsSinceUpdate) * pyramid.orientation
+            pyramid.rot = eye(GLfloat, 4)
+            pyramid.rot[1:3, 1:3] = rotationmatrix(pyramid.orientation)
 
-            # color = GLfloat[0 1 sin(i / 50) 1]'
+            # pyramid.color = GLfloat[0 1 sin(i / 50) 1]'
 
             # Pulse the background blue.
             # glClearColor(0.0, 0.0, 0.5 * (1 + sin(i * 0.02)), 1.0)
@@ -129,26 +149,16 @@ function modernGLDemo()
             secsSinceUpdate = 0
         end
 
-        glUniform3fv(posLoc, 1, pos)
-        glUniform3fv(scaleLoc, 1, scale)
-        glUniformMatrix4fv(rotLoc, 1, false, rot)
-        # glUniform4fv(colorLoc, 1, color)
+        update(pyramid)
 
         glClear(GL_COLOR_BUFFER_BIT)
 
-        # Draw our triangle.
-        # glBindBuffer(GL_ARRAY_BUFFER, vbo)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
-        glDrawElements(GL_TRIANGLES, length(indices), GL_UNSIGNED_INT, C_NULL)
+        render(pyramid)
+
         # Swap front and back buffers.
         GLFW.SwapBuffers(window)
         # Poll for and process events.
         GLFW.PollEvents()
-
-        if exitApp
-            println("Exiting")
-            break
-        end
 
         # Update time.
         secsPerFrame = toq()

@@ -1,4 +1,4 @@
-import ModernGL
+include("julia-util.jl")
 
 function glGenOne(glGenFn)
     id = GLuint[0]

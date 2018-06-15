@@ -1,4 +1,4 @@
-$(get_glsl_version_string())
+$(Renderer.get_glsl_version_string())
 
 in vec3 vertPos;
 out vec4 vertColor;
