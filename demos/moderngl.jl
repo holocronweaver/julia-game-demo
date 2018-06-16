@@ -7,61 +7,17 @@ const vsync = false
 const simUpdateQuantumSecs = 0.01
 const secsBetweenFpsUpdate = 2
 
-import GLFW
 using DataStructures
+import GLFW
 using ModernGL
 using Quaternions
 if profile using ProfileView end
 
+#WARNING: Order of includes matters.
 include(joinpath("lib", "Renderer.jl"))
+include(joinpath("lib", "Game.jl"))
 import Renderer
-
-mutable struct Pawn
-    shader::Renderer.Shader
-    mesh::Renderer.Mesh
-
-    posLoc::GLuint
-    scaleLoc::GLuint
-    rotLoc::GLuint
-    # colorLoc::GLuint
-
-    pos::Array{GLfloat, 1}
-    scale::Array{GLfloat, 1}
-    rot::Array{GLfloat, 2}
-    # color::Array{GLfloat, 1}
-
-    orientation::Quaternion
-
-    function Pawn(shader, mesh)
-        # Get shader variable locations.
-        #TODO: Map variables? Structs?
-        positionAttribute = glGetAttribLocation(shader.program, "vertPos")
-        posLoc = glGetUniformLocation(shader.program, "worldPos")
-        scaleLoc = glGetUniformLocation(shader.program, "worldScale")
-        rotLoc = glGetUniformLocation(shader.program, "worldRot")
-        # colorLoc = glGetUniformLocation(shader.program, "color")
-
-        glEnableVertexAttribArray(positionAttribute)
-        glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false, 0, C_NULL)
-
-        new(shader, mesh,
-            posLoc, scaleLoc, rotLoc,
-            zeros(GLfloat, 3), zeros(GLfloat, 3), zeros(GLfloat, 4, 4),
-            qrotation([1, 0, 0], 0))
-    end
-end
-function update(pawn::Pawn)
-    #TODO: Find way to map game objects to their GPU data.
-    # Preferably using OpenGL mapping.
-    glUniform3fv(pawn.posLoc, 1, pawn.pos)
-    glUniform3fv(pawn.scaleLoc, 1, pawn.scale)
-    glUniformMatrix4fv(pawn.rotLoc, 1, false, pawn.rot)
-    # glUniform4fv(pawn.colorLoc, 1, pawn.color)
-end
-function render(pawn::Pawn)
-    Renderer.bind(pawn.shader)
-    Renderer.render(pawn.mesh)
-end
+import Game
 
 function generatePyramid()
     const vertices = GLfloat[
@@ -78,7 +34,7 @@ function generatePyramid()
     ]
 
     const shadersDir = "shaders"
-    pyramid = Pawn(
+    pyramid = Game.Pawn(
         Renderer.Shader(
             joinpath(shadersDir, "vert.glsl"),
             joinpath(shadersDir, "frag.glsl")
@@ -112,7 +68,8 @@ function modernGLDemo()
         window,
         (_, key, scancode, action, mods) -> handleKey(key, scancode, action)
     )
-    # Loop until the user closes the window.
+
+    # Loop until user closes the window.
     runningSecsPerFrame = CircularBuffer{Real}(120)
     secsSincePrintFps = 0
 
@@ -125,9 +82,13 @@ function modernGLDemo()
 
         if secsSinceUpdate >= simUpdateQuantumSecs
             # Move the triangle and color.
-            pyramid.pos = GLfloat[0, 0, 0]
-            # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
-            # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
+            pyramid.pos = GLfloat[
+                0,
+                0,
+                # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
+                # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
+                0
+            ]
             pyramid.scale = GLfloat[1, 1, 1]
             pyramid.orientation = qrotation([0, 1, 0], 5.0 * secsSinceUpdate) * pyramid.orientation
             pyramid.rot = eye(GLfloat, 4)
@@ -149,11 +110,11 @@ function modernGLDemo()
             secsSinceUpdate = 0
         end
 
-        update(pyramid)
+        Game.update(pyramid)
 
         glClear(GL_COLOR_BUFFER_BIT)
 
-        render(pyramid)
+        Game.render(pyramid)
 
         # Swap front and back buffers.
         GLFW.SwapBuffers(window)
