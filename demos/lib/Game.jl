@@ -1,13 +1,13 @@
 module Game
 
+#TODO: Get rid of GL.
 using ModernGL
 using Quaternions
 
 import Renderer
 
 mutable struct Pawn
-    shader::Renderer.Shader
-    mesh::Renderer.Mesh
+    item::Renderer.Item
 
     posLoc::GLuint
     scaleLoc::GLuint
@@ -21,7 +21,8 @@ mutable struct Pawn
 
     orientation::Quaternion
 
-    function Pawn(shader, mesh)
+    function Pawn(item)
+        shader = item.shader
         # Get shader variable locations.
         #TODO: Map variables? Structs?
         positionAttribute = glGetAttribLocation(shader.program, "vertPos")
@@ -37,22 +38,22 @@ mutable struct Pawn
         glEnableVertexAttribArray(positionAttribute)
         glVertexAttribPointer(positionAttribute, 3, GL_FLOAT, false, 0, C_NULL)
 
-        new(shader, mesh,
-            posLoc, scaleLoc, rotLoc,
-            pos, scale, rot, orientation)
+        pawn = new(item,
+                   posLoc, scaleLoc, rotLoc,
+                   pos, scale, rot, orientation)
+
+        updateGpuBuffers(pawn)
+
+        pawn
     end
 end
-function update(pawn::Pawn)
+function updateGpuBuffers(pawn::Pawn)
     #TODO: Find way to map game objects to their GPU data.
-    # Preferably using OpenGL mapping.
+    # Preferably using OpenGL mapping, then delete this method.
     glUniform3fv(pawn.posLoc, 1, pawn.pos)
     glUniform3fv(pawn.scaleLoc, 1, pawn.scale)
     glUniformMatrix4fv(pawn.rotLoc, 1, false, pawn.rot)
     # glUniform4fv(pawn.colorLoc, 1, pawn.color)
-end
-function render(pawn::Pawn)
-    Renderer.bind(pawn.shader)
-    Renderer.render(pawn.mesh)
 end
 
 end # module

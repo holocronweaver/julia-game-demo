@@ -1,13 +1,6 @@
 #! /usr/bin/env julia
 const profile = false
-const targetFps = 60 + 5
-const targetSecsPerFrame = 1 / targetFps
-const vsync = false
 
-const simUpdateQuantumSecs = 0.01
-const secsBetweenFpsUpdate = 2
-
-using DataStructures
 import GLFW
 using ModernGL
 using Quaternions
@@ -18,6 +11,18 @@ include(joinpath("lib", "Renderer.jl"))
 include(joinpath("lib", "Game.jl"))
 import Renderer
 import Game
+
+# Quantum of simulation fixed time step in seconds.
+const chronon = 0.01
+
+const targetFps = 60
+const targetSecsPerFrame = 1 / targetFps
+const vsync = true
+
+# Exit app control.
+exitApp = false
+
+global nextUpdateQuantaMultiple = 0
 
 function generatePyramid()
     const vertices = GLfloat[
@@ -35,21 +40,20 @@ function generatePyramid()
 
     const shadersDir = "shaders"
     pyramid = Game.Pawn(
-        Renderer.Shader(
-            joinpath(shadersDir, "vert.glsl"),
-            joinpath(shadersDir, "frag.glsl")
-        ),
-        Renderer.Mesh(vertices, indices)
+        Renderer.Item(
+            Renderer.Shader(
+                joinpath(shadersDir, "vert.glsl"),
+                joinpath(shadersDir, "frag.glsl")
+            ),
+            Renderer.Mesh(vertices, indices)
+        )
     )
     pyramid
 end
 
 function modernGLDemo()
-
     window = Renderer.createWindow("ModernGL Example")
     Renderer.init()
-
-    pyramid = generatePyramid()
 
     # Setup input key handler.
     function handleKey(key, scancode, action)
@@ -69,80 +73,81 @@ function modernGLDemo()
         (_, key, scancode, action, mods) -> handleKey(key, scancode, action)
     )
 
+    pyramid = generatePyramid()
+    pawns = [pyramid]
+
+    scene = [pawn.item for pawn in pawns]
+
     # Loop until user closes the window.
-    runningSecsPerFrame = CircularBuffer{Real}(120)
-    secsSincePrintFps = 0
+    secsSinceLastSimUpdate = 0
+    secsSinceLastFrame = 0
+    while !exitApp
+        secsPerFrame = 0
+        if !vsync || secsSinceLastFrame >= targetSecsPerFrame
+            tic()
 
-    secsSinceUpdate = simUpdateQuantumSecs
+            Renderer.render(scene, window)
 
-    secsSinceFpsUpdate = 0
+            secsPerFrame = toq()
 
-    while !Renderer.exitApp
+            Renderer.printFps(secsSinceLastFrame)
+
+            secsSinceLastFrame = 0
+        end
+
         tic()
 
-        if secsSinceUpdate >= simUpdateQuantumSecs
-            # Move the triangle and color.
-            pyramid.pos = GLfloat[
-                0,
-                0,
-                # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
-                # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
-                0
-            ]
-            pyramid.scale = GLfloat[1, 1, 1]
-            pyramid.orientation = qrotation([0, 1, 0], 5.0 * secsSinceUpdate) * pyramid.orientation
-            pyramid.rot = eye(GLfloat, 4)
-            pyramid.rot[1:3, 1:3] = rotationmatrix(pyramid.orientation)
+        secsSinceLastSimUpdate += secsPerFrame
+        secsSinceLastSimUpdate = simulate(pawns, secsSinceLastSimUpdate)
 
-            # pyramid.color = GLfloat[0 1 sin(i / 50) 1]'
-
-            # Pulse the background blue.
-            # glClearColor(0.0, 0.0, 0.5 * (1 + sin(i * 0.02)), 1.0)
-
-            secsSinceFpsUpdate += secsSinceUpdate
-
-            if secsSinceFpsUpdate >= secsBetweenFpsUpdate
-                avgFps = 1 / mean(secsPerFrame)
-                println("FPS: ", avgFps)
-                secsSinceFpsUpdate = 0
-            end
-
-            secsSinceUpdate = 0
-        end
-
-        Game.update(pyramid)
-
-        glClear(GL_COLOR_BUFFER_BIT)
-
-        Game.render(pyramid)
-
-        # Swap front and back buffers.
-        GLFW.SwapBuffers(window)
-        # Poll for and process events.
-        GLFW.PollEvents()
-
-        # Update time.
-        secsPerFrame = toq()
-
-        # Limit frame rate.
-        if vsync
-            tic()
-            secsTilNextFrame = targetSecsPerFrame - secsPerFrame
-            # println("secsPerFrame: ", secsPerFrame)
-            # println("secsSinceUpdate: ", secsSinceUpdate)
-            # println("secsTilNextFrame: ", secsTilNextFrame)
-            if secsTilNextFrame >= 0
-                sleep(secsTilNextFrame)
-            else
-                println("Behind $targetSecsPerFrame secs per frame target by $(abs(secsTilNextFrame)) secs.")
-            end
-            secsPerFrame += toq()
-        end
-
-        push!(runningSecsPerFrame, secsPerFrame)
-        secsSinceUpdate += secsPerFrame
+        secsPerUpdate = toq()
+        secsSinceLastFrame += secsPerUpdate
     end
+
     GLFW.Terminate()
+end
+
+function exit()
+    global exitApp = true
+end
+
+function simulate(pawns, secsSinceUpdate)
+    tic()
+    while secsSinceUpdate > chronon
+        # Pulse the background blue.
+        # glClearColor(0.0, 0.0, 0.5 * (1 + sin(i * 0.02)), 1.0)
+
+        # Threads.@threads for pawn in pawns
+        for pawn in pawns
+            #TODO: generic update
+            updatePyramid(pawn, chronon)
+        end
+
+        # Update OpenGL in thread that created context.
+        for pawn in pawns
+            Game.updateGpuBuffers(pawn)
+        end
+
+        secsSinceUpdate -= chronon
+    end
+    secsSinceUpdate + toq()
+end
+
+function updatePyramid(pyramid::Game.Pawn, secsSinceUpdate)
+    # Move the triangle and color.
+    pyramid.pos = GLfloat[
+        0,
+        0,
+        # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
+        # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
+        0
+    ]
+    pyramid.scale = GLfloat[1, 1, 1]
+    pyramid.orientation = qrotation([0, 1, 0], 5.0 * secsSinceUpdate) * pyramid.orientation
+    pyramid.rot = eye(GLfloat, 4)
+    pyramid.rot[1:3, 1:3] = rotationmatrix(pyramid.orientation)
+
+    # pyramid.color = GLfloat[0, 1, sin(i / 50), 1]
 end
 
 

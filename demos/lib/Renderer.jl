@@ -1,13 +1,15 @@
 module Renderer
 
+using DataStructures
 import GLFW
 using ModernGL
 include("opengl-util.jl")
 
-# Exit app control.
-exitApp = false
-
+# FPS tracking.
 # const printFpsFreqSecs = 10
+const secsBetweenPrintFps = 2
+pastSecsPerFrame = CircularBuffer{Real}(120)
+timeOfLastFpsPrint = Dates.now()
 
 struct Mesh
     vertices::Array{GLfloat}
@@ -41,6 +43,11 @@ function bind(shader::Shader)
     glUseProgram(shader.program)
 end
 
+struct Item
+    shader::Shader
+    mesh::Mesh
+end
+
 function init()
     glEnable(GL_CULL_FACE)
 
@@ -72,9 +79,35 @@ function render(mesh::Mesh)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo)
     glDrawElements(GL_TRIANGLES, length(mesh.indices), GL_UNSIGNED_INT, C_NULL)
 end
+function render(item::Item)
+    bind(item.shader)
+    render(item.mesh)
+end
 
-function exit()
-    global exitApp = true
+
+function render(scene::Array{Item, 1}, window)
+    glClear(GL_COLOR_BUFFER_BIT)
+
+    for item in scene
+        render(item)
+    end
+
+    # Swap front and back buffers.
+    GLFW.SwapBuffers(window)
+    # Poll for and process events.
+    GLFW.PollEvents()
+end
+
+function printFps(secsPerFrame)
+    secsSincePrintFps = (Dates.now() - timeOfLastFpsPrint).value / 1000
+
+    push!(pastSecsPerFrame, secsPerFrame)
+
+    if secsSincePrintFps >= secsBetweenPrintFps
+        avgFps = 1 / mean(pastSecsPerFrame)
+        println("FPS: ", round(Int, avgFps))
+        global timeOfLastFpsPrint = Dates.now()
+    end
 end
 
 end # module
