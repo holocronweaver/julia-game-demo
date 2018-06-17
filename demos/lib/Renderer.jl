@@ -6,9 +6,8 @@ using ModernGL
 include("opengl-util.jl")
 
 # FPS tracking.
-# const printFpsFreqSecs = 10
-const secsBetweenPrintFps = 2
-pastSecsPerFrame = CircularBuffer{Real}(120)
+const secsBetweenFpsPrint = 2
+secsPerFrameHistory = CircularBuffer{Real}(120)
 timeOfLastFpsPrint = Dates.now()
 
 struct Mesh
@@ -99,13 +98,13 @@ function render(scene::Array{Item, 1}, window)
 end
 
 function printFps(secsPerFrame)
-    secsSincePrintFps = (Dates.now() - timeOfLastFpsPrint).value / 1000
+    secsSinceFpsPrint = (Dates.now() - timeOfLastFpsPrint).value / 1000
 
-    push!(pastSecsPerFrame, secsPerFrame)
+    push!(secsPerFrameHistory, secsPerFrame)
 
-    if secsSincePrintFps >= secsBetweenPrintFps
-        avgFps = 1 / mean(pastSecsPerFrame)
-        println("FPS: ", round(Int, avgFps))
+    if secsSinceFpsPrint >= secsBetweenFpsPrint
+        avgFps = 1 / mean(secsPerFrameHistory)
+        println("FPS: ", round(avgFps))
         global timeOfLastFpsPrint = Dates.now()
     end
 end

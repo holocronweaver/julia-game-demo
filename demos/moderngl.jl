@@ -1,6 +1,7 @@
 #! /usr/bin/env julia
 const profile = false
 
+using DataStructures
 import GLFW
 using ModernGL
 using Quaternions
@@ -18,6 +19,12 @@ const chronon = 0.01
 const targetFps = 60
 const targetSecsPerFrame = 1 / targetFps
 const vsync = true
+
+timeOfLastSimUpdate = Dates.now()
+
+pastSecsPerUpdate = CircularBuffer{Real}(120)
+
+updateCounter = 0
 
 # Exit app control.
 exitApp = false
@@ -54,10 +61,10 @@ function modernGLDemo()
     scene = [pawn.item for pawn in pawns]
 
     # Loop until user closes the window.
-    secsSinceLastSimUpdate = 0
     secsSinceLastFrame = 0
+    timeOfLastFrame = Dates.now()
     while !exitApp
-        secsPerFrame = 0
+        secsSinceLastFrame = (Dates.now() - timeOfLastFrame).value / 1000
         if !vsync || secsSinceLastFrame >= targetSecsPerFrame
             tic()
 
@@ -65,26 +72,29 @@ function modernGLDemo()
 
             secsPerFrame = toq()
 
-            Renderer.printFps(secsSinceLastFrame)
+            timeOfLastFrame = Dates.now()
 
-            secsSinceLastFrame = 0
+            Renderer.printFps(secsSinceLastFrame)
         end
 
         tic()
-
-        secsSinceLastSimUpdate += secsPerFrame
-        secsSinceLastSimUpdate = simulate(pawns, secsSinceLastSimUpdate)
-
-        secsPerUpdate = toq()
-        secsSinceLastFrame += secsPerUpdate
+        simulate(pawns)
+        secsSpentSimulating = toq()
     end
 
     GLFW.Terminate()
 end
 
-function simulate(pawns, secsSinceUpdate)
-    tic()
-    while secsSinceUpdate > chronon
+function simulate(pawns)
+    secsSinceUpdate = (Dates.now() - timeOfLastSimUpdate).value / 1000
+    while secsSinceUpdate >= chronon
+        # push!(pastSecsPerUpdate, )
+        global updateCounter += 1
+        if updateCounter == 5 / chronon
+            println("Secs per update: ", secsSinceUpdate)
+            global updateCounter = 0
+        end
+
         # Threads.@threads for pawn in pawns
         for pawn in pawns
             #TODO: generic update
@@ -97,8 +107,9 @@ function simulate(pawns, secsSinceUpdate)
         end
 
         secsSinceUpdate -= chronon
+
+        global timeOfLastSimUpdate = Dates.now()
     end
-    secsSinceUpdate + toq()
 end
 
 if profile
