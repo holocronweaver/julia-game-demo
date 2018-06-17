@@ -8,8 +8,9 @@ using Quaternions
 if profile using ProfileView end
 
 #WARNING: Order of includes matters.
-include(joinpath("lib", "Renderer.jl"))
-include(joinpath("lib", "Game.jl"))
+const libDir = joinpath("..", "lib")
+include(joinpath(libDir, "Renderer.jl"))
+include(joinpath(libDir, "Game.jl"))
 import Renderer
 import Game
 

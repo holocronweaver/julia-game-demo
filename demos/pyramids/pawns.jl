@@ -12,7 +12,7 @@ function generatePyramid()
         3, 1, 2,
     ]
 
-    const shadersDir = "shaders"
+    const shadersDir = joinpath("..", "shaders")
     pyramid = Game.Pawn(
         Renderer.Item(
             Renderer.Shader(
