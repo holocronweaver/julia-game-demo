@@ -1,6 +1,12 @@
 #! /usr/bin/env julia
+deps = [
+    "DataStructures",
+    "GLFW",
+    "ModernGL",
+    "Quaternions",
+]
+
 Pkg.update()
-Pkg.add("GLFW")
-Pkg.add("ModernGL")
-Pkg.add("DataStructures")
-Pkg.add("Quaternions")
+for dep in deps
+    Pkg.add(dep)
+end
