@@ -2,6 +2,7 @@ $(Renderer.get_glsl_version_string())
 
 in vec3 vertPos;
 out vec4 vertColor;
+
 uniform vec3 worldPos;
 uniform vec3 worldScale;
 uniform mat4 worldRot;

@@ -56,10 +56,15 @@ function modernGLDemo()
         (_, key, scancode, action, mods) -> handleKey(key, scancode, action)
     )
 
-    pyramid = generatePyramid()
-    pawns = [pyramid]
+    const shadersDir = joinpath("..", "shaders")
+    shader = Renderer.Shader(
+        joinpath(shadersDir, "vert.glsl"),
+        joinpath(shadersDir, "frag.glsl")
+    )
+    pyramid = Pyramid(shader)
+    actors = [pyramid]
 
-    scene = [pawn.item for pawn in pawns]
+    scene = [actor.pawn.item for actor in actors]
 
     # Loop until user closes the window.
     secsSinceLastFrame = 0
@@ -79,14 +84,16 @@ function modernGLDemo()
         end
 
         tic()
-        simulate(pawns)
+        simulate(actors)
         secsSpentSimulating = toq()
+
+        GLFW.PollEvents()
     end
 
     GLFW.Terminate()
 end
 
-function simulate(pawns)
+function simulate(actors)
     secsSinceUpdate = (Dates.now() - timeOfLastSimUpdate).value / 1000
     while secsSinceUpdate >= chronon
         # push!(pastSecsPerUpdate, )
@@ -96,15 +103,15 @@ function simulate(pawns)
             global updateCounter = 0
         end
 
-        # Threads.@threads for pawn in pawns
-        for pawn in pawns
+        # Threads.@threads for actor in actors
+        for actor in actors
             #TODO: generic update
-            updatePyramid(pawn, chronon)
+            simulate(actor, chronon)
         end
 
         # Update OpenGL in thread that created context.
-        for pawn in pawns
-            Game.updateGpuBuffers(pawn)
+        for actor in actors
+            Game.updateGpuBuffers(actor.pawn)
         end
 
         secsSinceUpdate -= chronon

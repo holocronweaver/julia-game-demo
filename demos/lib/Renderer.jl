@@ -3,6 +3,7 @@ module Renderer
 using DataStructures
 import GLFW
 using ModernGL
+
 include("opengl-util.jl")
 
 # FPS tracking.
@@ -11,20 +12,8 @@ secsPerFrameHistory = CircularBuffer{Real}(120)
 timeOfLastFpsPrint = Dates.now()
 
 struct Mesh
-    vertices::Array{GLfloat}
-    indices::Array{GLint}
-    vbo::GLuint
-    ibo::GLuint
-
-    function Mesh(vertices, indices)
-        vbo = glGenBuffer()
-        glBindBuffer(GL_ARRAY_BUFFER, vbo)
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW)
-        ibo = glGenBuffer()
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW)
-        new(vertices, indices, vbo, ibo)
-    end
+    vertices::Array{GLfloat, 2}
+    indices::Array{GLuint, 1}
 end
 
 struct Shader
@@ -35,54 +24,87 @@ struct Shader
         vertexShader = Renderer.createShaderFromFile(vertexFile, GL_VERTEX_SHADER)
         fragmentShader = Renderer.createShaderFromFile(fragFile, GL_FRAGMENT_SHADER)
         program = Renderer.createShaderProgram(vertexShader, fragmentShader)
+
         new(program)
     end
-end
-function bind(shader::Shader)
-    glUseProgram(shader.program)
 end
 
 struct Item
     shader::Shader
     mesh::Mesh
+
+    vao::GLuint
+    vbo::GLuint
+    ibo::GLuint
+
+    function Item(shader::Shader, mesh::Mesh)
+        vao = glGenVertexArray()
+        glBindVertexArray(vao)
+
+        #TODO: Map variables? Structs?
+        #TODO: Ideally OpenGL <-> Julia, unified structs. Unclear how
+        # to best do that.
+
+        # See https://www.khronos.org/opengl/wiki/Vertex_Specification#Vertex_Buffer_Object
+        # Basically, unlike GL_ELEMENT_ARRAY_BUFFER, the
+        # GL_ARRAY_BUFFER binding is not tracked by VAO. Instead
+        # glVertexAttribPointer sets the current bound buffer to the
+        # vertex attribute index, and it is this attrib pointer that
+        # is tracked by VAO. Thus multiple GL_ARRAY_BUFFER can be used
+        # for a single VAO, up to one unique buffer per attribute index.
+        vbo = glGenBuffer()
+        glBindBuffer(GL_ARRAY_BUFFER, vbo)
+        glBufferData(GL_ARRAY_BUFFER,
+                     sizeof(mesh.vertices), mesh.vertices, GL_STATIC_DRAW)
+        positionIndex = glGetAttribLocation(shader.program, "vertPos")
+        glEnableVertexAttribArray(positionIndex)
+        glVertexAttribPointer(positionIndex, 3, GL_FLOAT, false, 0, C_NULL)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+        ibo = glGenBuffer()
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                     sizeof(mesh.indices), mesh.indices, GL_STATIC_DRAW)
+
+        glBindVertexArray(0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        new(shader, mesh, vao, vbo, ibo)
+    end
+end
 end
 
 function init()
     glEnable(GL_CULL_FACE)
 
-    vao = glGenVertexArray()
-    glBindVertexArray(vao)
-
     # GLFW.SwapInterval(0)
 end
 
-# OS X-specific GLFW hints to initialize the correct version of OpenGL.
-function createWindow(title, height=600)
+function createWindow(title, width=600, height=600)
     GLFW.Init()
 
     # Create a windowed mode window and its OpenGL context.
-    window = GLFW.CreateWindow(height, height, title)
+    window = GLFW.CreateWindow(width, height, title)
     # Make the window's context current.
     GLFW.MakeContextCurrent(window)
     GLFW.ShowWindow(window)
     # Seems to be necessary to guarantee that window > 0.
-    GLFW.SetWindowSize(window, height, height)
-    glViewport(0, 0, height, height)
+    GLFW.SetWindowSize(window, width, height)
+    glViewport(0, 0, width, height)
     println(createcontextinfo())
 
     window
 end
 
-function render(mesh::Mesh)
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo)
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo)
-    glDrawElements(GL_TRIANGLES, length(mesh.indices), GL_UNSIGNED_INT, C_NULL)
-end
 function render(item::Item)
-    bind(item.shader)
-    render(item.mesh)
-end
+    glUseProgram(item.shader.program)
+    glBindVertexArray(item.vao)
 
+    glDrawElements(GL_TRIANGLES, length(item.mesh.indices), GL_UNSIGNED_INT, C_NULL)
+
+    glBindVertexArray(0)
+    glUseProgram(0)
+end
 
 function render(scene::Array{Item, 1}, window)
     glClear(GL_COLOR_BUFFER_BIT)
@@ -93,8 +115,6 @@ function render(scene::Array{Item, 1}, window)
 
     # Swap front and back buffers.
     GLFW.SwapBuffers(window)
-    # Poll for and process events.
-    GLFW.PollEvents()
 end
 
 function printFps(secsPerFrame)

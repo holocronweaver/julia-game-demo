@@ -66,7 +66,9 @@ function createShader(source, typ)
     glShaderSource(shader, 1, convert(Ptr{UInt8}, pointer([convert(Ptr{GLchar}, pointer(source))])), C_NULL)
     glCompileShader(shader)
     # Check for errors
-    !validateShader(shader) && error("Shader creation error: ", getInfoLog(shader))
+    if !validateShader(shader)
+        error("Shader creation error: ", getInfoLog(shader))
+    end
     shader
 end
 function createShaderFromFile(filepath, typ)
