@@ -1,40 +1,25 @@
 #! /usr/bin/env julia
-const profile = false
+const libDir = joinpath("..", "lib")
+include(joinpath(libDir, "Renderer.jl"))
+include(joinpath(libDir, "Game.jl"))
+
+module Pyramids
 
 using DataStructures
 import GLFW
 using ModernGL
 using Quaternions
-if profile using ProfileView end
 
 #WARNING: Order of includes matters.
-const libDir = joinpath("..", "lib")
-include(joinpath(libDir, "Renderer.jl"))
-include(joinpath(libDir, "Game.jl"))
 import Renderer
 import Game
 
-# Quantum of simulation fixed time step in seconds.
+"Quantum of simulation fixed time step in seconds."
 const chronon = 0.01
 
-const targetFps = 60
+const targetFps = 70
 const targetSecsPerFrame = 1 / targetFps
 const vsync = true
-
-oldCursorPos = [0, 0]
-cameraRot = [0, 0]
-camera = nothing
-
-timeOfLastSimUpdate = Dates.now()
-
-pastSecsPerUpdate = CircularBuffer{Real}(120)
-
-updateCounter = 0
-
-# Exit app control.
-exitApp = false
-
-global nextUpdateQuantaMultiple = 0
 
 include("pawns.jl")
 
@@ -62,7 +47,7 @@ function handleKey(key, scancode, action)
     end
 end
 
-# Camera coordinates are its pitch, roll, and yaw vectors.
+"Camera coordinates are its pitch, roll, and yaw vectors."
 function translate(camera::Renderer.Camera, translationInCamCoords)
     rotation = rotationmatrix(camera.orientation)
     translationInWorldCoords = rotation * translationInCamCoords
@@ -88,7 +73,9 @@ function handleCursorPos(cursorPos)
     Renderer.updateGpuBuffers(camera)
 end
 
-function modernGLDemo()
+function demo()
+    resetDemo()
+
     window = Renderer.createWindow("ModernGL Example")
     Renderer.init()
 
@@ -146,13 +133,25 @@ function modernGLDemo()
 
     GLFW.Terminate()
 
-    resetDemo()
     return
 end
 
-# Reset demo, allowing it to be run again in the same session.
+"Reset demo global variables, allowing it to be run again in the
+same session."
 function resetDemo()
     global exitApp = false
+
+    global oldCursorPos = [0, 0]
+    global cameraRot = [0, 0]
+    global camera = nothing
+
+    global timeOfLastSimUpdate = Dates.now()
+
+    global pastSecsPerUpdate = CircularBuffer{Real}(120)
+
+    global updateCounter = 0
+
+    global nextUpdateQuantaMultiple = 0
 end
 
 function simulate(actors)
@@ -182,12 +181,21 @@ function simulate(actors)
     end
 end
 
-if profile
-    Profile.init(delay=0.01)
-    Profile.clear()
-    @profile modernGLDemo()
-    ProfileView.view()
-    sleep(20)
-else
-    modernGLDemo()
+end # module
+
+Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
+    const profile = false
+
+    if profile
+        using ProfileView
+        Profile.init(delay=0.01)
+        Profile.clear()
+        @profile Pyramids.modernGLDemo()
+        ProfileView.view()
+        sleep(20)
+    else
+        Pyramids.demo()
+    end
+
+    return 0
 end
