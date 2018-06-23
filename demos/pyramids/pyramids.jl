@@ -40,15 +40,34 @@ include("pawns.jl")
 
 function handleKey(key, scancode, action)
     name = GLFW.GetKeyName(key, scancode)
-    if name == nothing
-        println("scancode $scancode ", action)
-    else
-        println("key $name ", action)
-    end
+    # if name == nothing
+    #     println("scancode $scancode ", action)
+    # else
+    #     println("key $name ", action)
+    # end
     # if key != nothing
+
+    const speed = 0.1
+
     if key == GLFW.KEY_SPACE
         global exitApp = true
+    elseif key in [GLFW.KEY_W, GLFW.KEY_UP]
+        translate(camera, -speed * GLfloat[0, 0, 1])
+    elseif key in [GLFW.KEY_S, GLFW.KEY_DOWN]
+        translate(camera, speed * GLfloat[0, 0, 1])
+    elseif key in [GLFW.KEY_A, GLFW.KEY_LEFT]
+        translate(camera, speed * GLfloat[1, 0, 0])
+    elseif key in [GLFW.KEY_D, GLFW.KEY_RIGHT]
+        translate(camera, -speed * GLfloat[1, 0, 0])
     end
+end
+
+# Camera coordinates are its pitch, roll, and yaw vectors.
+function translate(camera::Renderer.Camera, translationInCamCoords)
+    rotation = rotationmatrix(camera.orientation)
+    translationInWorldCoords = rotation * translationInCamCoords
+    camera.position += translationInWorldCoords
+    Renderer.updateGpuBuffers(camera)
 end
 
 function handleCursorPos(cursorPos)
@@ -57,9 +76,14 @@ function handleCursorPos(cursorPos)
 
     global cameraRot += 0.005 * [xdel, ydel]
 
-    pitch = qrotation([1, 0, 0], cameraRot[2])
     yaw = qrotation([0, 1, 0], cameraRot[1])
+    pitchVec = rotationmatrix(yaw) * [1, 0, 0]
+    pitch = qrotation(pitchVec, cameraRot[2])
     camera.orientation = pitch * yaw
+
+    # frameYaw = qrotation([0, 1, 0], 0.01 * xdel)
+    # framePitch = qrotation([1, 0, 0], 0.01 * ydel)
+    # camera.orientation = framePitch * camera.orientation * frameYaw
 
     Renderer.updateGpuBuffers(camera)
 end
@@ -68,11 +92,15 @@ function modernGLDemo()
     window = Renderer.createWindow("ModernGL Example")
     Renderer.init()
 
+    GLFW.SetInputMode(window, GLFW.CURSOR, GLFW.CURSOR_DISABLED)
+
     GLFW.SetKeyCallback(
         window,
         (_, key, scancode, action, mods) -> handleKey(key, scancode, action)
     )
 
+    cursorPos = GLFW.GetCursorPos(window)
+    global oldCursorPos = [cursorPos[1], cursorPos[2]]
     GLFW.SetCursorPosCallback(
         window,
         (_, xpos, ypos) -> handleCursorPos([xpos, ypos])
@@ -117,6 +145,14 @@ function modernGLDemo()
     end
 
     GLFW.Terminate()
+
+    resetDemo()
+    return
+end
+
+# Reset demo, allowing it to be run again in the same session.
+function resetDemo()
+    global exitApp = false
 end
 
 function simulate(actors)
