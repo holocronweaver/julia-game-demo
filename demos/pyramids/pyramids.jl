@@ -61,6 +61,10 @@ function modernGLDemo()
         joinpath(shadersDir, "vert.glsl"),
         joinpath(shadersDir, "frag.glsl")
     )
+
+    camera = Renderer.Camera(GLFW.GetWindowSize(window))
+    Renderer.bind(camera, shader)
+
     pyramid = Pyramid(shader)
     actors = [pyramid]
 

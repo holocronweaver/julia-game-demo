@@ -45,17 +45,10 @@ struct Item
         #TODO: Ideally OpenGL <-> Julia, unified structs. Unclear how
         # to best do that.
 
-        # See https://www.khronos.org/opengl/wiki/Vertex_Specification#Vertex_Buffer_Object
-        # Basically, unlike GL_ELEMENT_ARRAY_BUFFER, the
-        # GL_ARRAY_BUFFER binding is not tracked by VAO. Instead
-        # glVertexAttribPointer sets the current bound buffer to the
-        # vertex attribute index, and it is this attrib pointer that
-        # is tracked by VAO. Thus multiple GL_ARRAY_BUFFER can be used
-        # for a single VAO, up to one unique buffer per attribute index.
         vbo = glGenBuffer()
         glBindBuffer(GL_ARRAY_BUFFER, vbo)
         glBufferData(GL_ARRAY_BUFFER,
-                     sizeof(mesh.vertices), mesh.vertices, GL_STATIC_DRAW)
+                     sizeof(mesh.vertices), mesh.vertices', GL_STATIC_DRAW)
         positionIndex = glGetAttribLocation(shader.program, "vertPos")
         glEnableVertexAttribArray(positionIndex)
         glVertexAttribPointer(positionIndex, 3, GL_FLOAT, false, 0, C_NULL)
@@ -72,6 +65,54 @@ struct Item
         new(shader, mesh, vao, vbo, ibo)
     end
 end
+
+mutable struct Camera
+    nearZ::GLfloat
+    farZ::GLfloat
+    fieldOfView::GLfloat # radians
+    aspectRatio::GLfloat
+
+    buffer::GLuint
+
+    function Camera(; nearZ=0.1, farZ=100,
+                    fieldOfView=deg2rad(30), aspectRatio=1920/1080)
+        buffer = glGenBuffer()
+        bufferIndex = 0
+
+        camera = new(nearZ, farZ, fieldOfView, aspectRatio, buffer)
+
+        glBindBuffer(GL_UNIFORM_BUFFER, buffer)
+        proj = projection(camera)
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(proj), proj, GL_STATIC_DRAW)
+        glBindBuffer(GL_UNIFORM_BUFFER, 0)
+
+        camera
+    end
+
+    function Camera(screenResolution)
+        aspectRatio = screenResolution[1] / screenResolution[2]
+        Camera(aspectRatio=aspectRatio)
+    end
+end
+function projection(cam::Camera)
+    tanfov = tan(cam.fieldOfView / 2)
+    GLfloat[
+        1 / (cam.aspectRatio * tanfov) 0 0 0
+        0 1 / tanfov 0 0
+        0 0 (-cam.nearZ - cam.farZ) / (cam.nearZ - cam.farZ) 2 * cam.farZ * cam.nearZ / (cam.nearZ - cam.farZ)
+        0 0 1 0
+    ]
+end
+function bind(camera::Camera, shader::Shader)
+    #TODO: auto-map uniform buffer <-> buffer binding on shader creation.
+    # Then all that has to be called is glBindBufferBase(GL_*, getBufferIndex(shader, "Camera"), camera.buffer) when switching cameras or shaders.
+    bufferIndex = 0
+
+    uniformBlockIndex = glGetUniformBlockIndex(shader.program, "Camera")
+    glUniformBlockBinding(shader.program, uniformBlockIndex, bufferIndex)
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, bufferIndex, camera.buffer)
+    glBindBuffer(GL_UNIFORM_BUFFER, 0)
 end
 
 function init()

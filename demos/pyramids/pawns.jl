@@ -7,12 +7,12 @@ struct Pyramid
             0.5 -0.5  0.0
             -0.5 -0.5  0.0
             0.0  0.0  1.0
-        ]'
+        ]
         const indices = GLuint[
             2, 1, 0,
             3, 0, 1,
             2, 0, 3,
-            3, 1, 2,
+            1, 2, 3,
         ]
 
         mesh = Renderer.Mesh(vertices, indices)
@@ -31,7 +31,7 @@ function simulate(pyramid::Pyramid, secsSinceUpdate)
         0,
         # sin(secsSinceUpdate) + 0.1 * sin(secsSinceUpdate / 2)
         # sin(secsSinceUpdate / 50) + 0.2 * cos(secsSinceUpdate / 5)
-        0
+        4
     ]
     pawn.scale = GLfloat[1, 1, 1]
     pawn.orientation = qrotation([0, 1, 0], 5.0 * secsSinceUpdate) * pawn.orientation

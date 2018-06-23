@@ -8,22 +8,26 @@ uniform vec3 worldScale;
 uniform mat4 worldRot;
 //uniform vec4 color;
 
+layout(std140) uniform Camera {
+    mat4 projection;
+} camera;
+
 mat4 translate(vec3 translation) {
-    return mat4(
+    return transpose(mat4(
         1, 0, 0, translation[0],
         0, 1, 0, translation[1],
         0, 0, 1, translation[2],
         0, 0, 0, 1
-    );
+    ));
 }
 
 mat4 scale(vec3 scale) {
-    return mat4(
+    return transpose(mat4(
         scale[0], 0, 0, 0,
         0, scale[1], 0, 0,
         0, 0, scale[2], 0,
         0, 0, 0, 1
-    );
+    ));
 }
 
 void main()
@@ -33,8 +37,6 @@ void main()
         1
     );
 
-    mat4 world = scale(worldScale) * worldRot * translate(worldPos);
-    //const mat4 view;
-    //const mat4 proj;
-    gl_Position = vec4(vertPos, 1) * world;
+    mat4 world = translate(worldPos) * worldRot * scale(worldScale);
+    gl_Position = camera.projection * world * vec4(vertPos, 1);
 }
