@@ -10,6 +10,8 @@ uniform mat4 worldRot;
 
 layout(std140) uniform Camera {
     mat4 projection;
+    mat4 orientationTransform;
+    vec3 position;
 } camera;
 
 mat4 translate(vec3 translation) {
@@ -38,5 +40,6 @@ void main()
     );
 
     mat4 world = translate(worldPos) * worldRot * scale(worldScale);
-    gl_Position = camera.projection * world * vec4(vertPos, 1);
+    mat4 view = camera.orientationTransform * translate(camera.position);
+    gl_Position = camera.projection * view * world * vec4(vertPos, 1);
 }
