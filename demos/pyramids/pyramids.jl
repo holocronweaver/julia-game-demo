@@ -21,6 +21,10 @@ const targetFps = 60
 const targetSecsPerFrame = 1 / targetFps
 const vsync = true
 
+oldCursorPos = [0, 0]
+cameraRot = [0, 0]
+camera = nothing
+
 timeOfLastSimUpdate = Dates.now()
 
 pastSecsPerUpdate = CircularBuffer{Real}(120)
@@ -47,6 +51,19 @@ function handleKey(key, scancode, action)
     end
 end
 
+function handleCursorPos(cursorPos)
+    xdel, ydel = cursorPos - oldCursorPos
+    global oldCursorPos = cursorPos
+
+    global cameraRot += 0.005 * [xdel, ydel]
+
+    pitch = qrotation([1, 0, 0], cameraRot[2])
+    yaw = qrotation([0, 1, 0], cameraRot[1])
+    camera.orientation = pitch * yaw
+
+    Renderer.updateGpuBuffers(camera)
+end
+
 function modernGLDemo()
     window = Renderer.createWindow("ModernGL Example")
     Renderer.init()
@@ -56,13 +73,18 @@ function modernGLDemo()
         (_, key, scancode, action, mods) -> handleKey(key, scancode, action)
     )
 
+    GLFW.SetCursorPosCallback(
+        window,
+        (_, xpos, ypos) -> handleCursorPos([xpos, ypos])
+    )
+
     const shadersDir = joinpath("..", "shaders")
     shader = Renderer.Shader(
         joinpath(shadersDir, "vert.glsl"),
         joinpath(shadersDir, "frag.glsl")
     )
 
-    camera = Renderer.Camera(GLFW.GetWindowSize(window))
+    global camera = Renderer.Camera(GLFW.GetWindowSize(window))
     Renderer.bind(camera, shader)
 
     pyramid = Pyramid(shader)
