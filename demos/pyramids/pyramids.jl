@@ -78,6 +78,7 @@ function demo()
     window = Renderer.createWindow("ModernGL Example") #, monitorIndex=3)
     Renderer.init()
 
+    # Grab cursor.
     GLFW.SetInputMode(window, GLFW.CURSOR, GLFW.CURSOR_DISABLED)
 
     GLFW.SetKeyCallback(
@@ -101,10 +102,21 @@ function demo()
     global camera = Renderer.Camera(GLFW.GetWindowSize(window))
     Renderer.bind(camera, shader)
 
-    pyramid = Pyramid(shader)
-    actors = [pyramid]
+    pyramidOne = Pyramid(shader)
+    pyramidOne.pawn.pos = GLfloat[0, 0, 4]
+    pyramidTwo = Pyramid(shader)
+    pyramidTwo.pawn.pos = GLfloat[0, 4, 30]
+    plane = Plane(shader)
+    plane.pawn.pos = GLfloat[-5, -2, -10]
+    plane.pawn.scale = GLfloat[30, 1, 50]
 
-    scene = [actor.pawn.item for actor in actors]
+    actors = [
+        pyramidOne,
+        pyramidTwo,
+        plane
+    ]
+
+    scene = [actor.pawn for actor in actors]
 
     # Loop until user closes the window.
     secsSinceLastFrame = 0

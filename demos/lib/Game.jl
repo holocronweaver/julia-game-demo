@@ -56,4 +56,9 @@ function updateGpuBuffers(pawn::Pawn)
     glUseProgram(0)
 end
 
+function Renderer.render(pawn::Pawn)
+    updateGpuBuffers(pawn)
+    Renderer.render(pawn.item)
+end
+
 end # module

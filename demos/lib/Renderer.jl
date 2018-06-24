@@ -184,6 +184,8 @@ function createWindow(title; width=0, height=0, monitorIndex=0)
     glViewport(0, 0, width, height)
     println(createcontextinfo())
 
+    glEnable(GL_DEPTH_TEST)
+
     return window
 end
 
@@ -197,8 +199,8 @@ function render(item::Item)
     glUseProgram(0)
 end
 
-function render(scene::Array{Item, 1}, window)
-    glClear(GL_COLOR_BUFFER_BIT)
+function render(scene, window)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     for item in scene
         render(item)
