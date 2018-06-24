@@ -78,11 +78,11 @@ mutable struct Camera
 
     buffer::GLuint
 
-    function Camera(; position=GLfloat[0,0,0], orientation=qrotation([1, 0, 0], 0),
+    function Camera(; position=GLfloat[0,0,0],
+                    orientation=qrotation([1, 0, 0], 0),
                     nearZ=0.1, farZ=100,
                     fieldOfView=deg2rad(30), aspectRatio=1920/1080)
         buffer = glGenBuffer()
-        bufferIndex = 0
 
         camera = new(position, orientation, nearZ, farZ, fieldOfView, aspectRatio, buffer)
 

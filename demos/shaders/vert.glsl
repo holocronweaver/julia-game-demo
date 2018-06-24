@@ -3,10 +3,12 @@ $(Renderer.get_glsl_version_string())
 in vec3 vertPos;
 out vec4 vertColor;
 
-uniform vec3 worldPos;
-uniform vec3 worldScale;
-uniform mat4 worldRot;
-//uniform vec4 color;
+layout(std140) uniform Pawn {
+    mat4 worldRot;
+    //vec4 color;
+    vec3 worldPos;
+    vec3 worldScale;
+} pawn;
 
 layout(std140) uniform Camera {
     mat4 projection;
@@ -39,7 +41,7 @@ void main()
         1
     );
 
-    mat4 world = translate(worldPos) * worldRot * scale(worldScale);
+    mat4 world = translate(pawn.worldPos) * pawn.worldRot * scale(pawn.worldScale);
     mat4 view = camera.orientationTransform * translate(camera.position);
     gl_Position = camera.projection * view * world * vec4(vertPos, 1);
 }
