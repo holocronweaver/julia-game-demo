@@ -157,11 +157,25 @@ function init()
     # GLFW.SwapInterval(0)
 end
 
-function createWindow(title, width=600, height=600)
+function createWindow(title; width=0, height=0, monitorIndex=0)
     GLFW.Init()
+
+    monitor = monitorIndex == 0 ? GLFW.GetPrimaryMonitor() : GLFW.GetMonitors()[monitorIndex]
+    mode = GLFW.GetVideoMode(monitor)
+
+    GLFW.WindowHint(GLFW.RED_BITS, mode.redbits)
+    GLFW.WindowHint(GLFW.GREEN_BITS, mode.greenbits)
+    GLFW.WindowHint(GLFW.BLUE_BITS, mode.bluebits)
+    GLFW.WindowHint(GLFW.REFRESH_RATE, mode.refreshrate)
+    if width == 0 || height == 0
+        width = mode.width
+        height = mode.height
+    end
 
     # Create a windowed mode window and its OpenGL context.
     window = GLFW.CreateWindow(width, height, title)
+    monitorPos = GLFW.GetMonitorPos(monitor)
+    GLFW.SetWindowPos(window, monitorPos[1], monitorPos[2])
     # Make the window's context current.
     GLFW.MakeContextCurrent(window)
     GLFW.ShowWindow(window)
@@ -170,7 +184,7 @@ function createWindow(title, width=600, height=600)
     glViewport(0, 0, width, height)
     println(createcontextinfo())
 
-    window
+    return window
 end
 
 function render(item::Item)

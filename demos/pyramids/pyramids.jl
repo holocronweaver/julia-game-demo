@@ -1,18 +1,17 @@
 #! /usr/bin/env julia
 const libDir = joinpath("..", "lib")
+#WARNING: Order of includes matters.
 include(joinpath(libDir, "Renderer.jl"))
 include(joinpath(libDir, "Game.jl"))
 
 module Pyramids
 
 using DataStructures
+import Game
 import GLFW
 using ModernGL
 using Quaternions
-
-#WARNING: Order of includes matters.
 import Renderer
-import Game
 
 "Quantum of simulation fixed time step in seconds."
 const chronon = 0.01
@@ -76,7 +75,7 @@ end
 function demo()
     resetDemo()
 
-    window = Renderer.createWindow("ModernGL Example")
+    window = Renderer.createWindow("ModernGL Example") #, monitorIndex=3)
     Renderer.init()
 
     GLFW.SetInputMode(window, GLFW.CURSOR, GLFW.CURSOR_DISABLED)
