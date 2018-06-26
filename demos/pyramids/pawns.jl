@@ -46,7 +46,8 @@ end
 struct Plane
     pawn::Game.Pawn
 
-    function Plane(shader::Renderer.Shader)
+    function Plane(shader::Renderer.Shader,
+                   texture::Renderer.Texture)
         const vertices = GLfloat[
             0.0  0.0  0.0
             1.0  0.0  0.0
@@ -59,7 +60,7 @@ struct Plane
         ]
 
         mesh = Renderer.Mesh(vertices, indices)
-        item = Renderer.Item(shader, mesh)
+        item = Renderer.Item(shader, mesh, texture)
         pawn = Game.Pawn(item)
         new(pawn)
     end

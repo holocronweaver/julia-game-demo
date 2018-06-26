@@ -1,12 +1,18 @@
 #! /usr/bin/env julia
-deps = [
+print("Install dependencies needed to run package? [y/n]: ")
+response = readline()
+if lowercase(response[1]) != 'y'
+    exit()
+end
+
+app_deps = [
     "DataStructures",
     "GLFW",
+    "Images",
     "ModernGL",
     "Quaternions",
 ]
 
-Pkg.update()
-for dep in deps
+for dep in app_deps
     Pkg.add(dep)
 end

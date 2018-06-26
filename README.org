@@ -2,3 +2,5 @@ TODO: Fill out README. =)
 
 * License
 All source code is licensed under the MPL v2.0.
+
+Grass texture is licensed under CC0 Public Domain by [[https://www.publicdomainpictures.net/en/view-image.php?image=22222&picture=grass-pattern][Petr Kratochvil]].

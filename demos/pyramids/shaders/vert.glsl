@@ -1,6 +1,7 @@
-$(Renderer.get_glsl_version_string())
+#version 450
 
 in vec3 vertPos;
+out vec3 vertModelPos;
 out vec4 vertColor;
 
 layout(std140) uniform Pawn {
@@ -36,6 +37,7 @@ mat4 scale(vec3 scale) {
 
 void main()
 {
+    vertModelPos = vertPos;
     vertColor = vec4(
         1.8 * vec3(vertPos.x + 0.1, vertPos.y + 0.1, vertPos.z + 0.1),
         1

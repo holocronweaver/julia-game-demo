@@ -1,7 +1,7 @@
 #! /usr/bin/env julia
 const libDir = joinpath("..", "lib")
 #WARNING: Order of includes matters.
-include(joinpath(libDir, "Renderer.jl"))
+include(joinpath(libDir, "Renderer", "Renderer.jl"))
 include(joinpath(libDir, "Game.jl"))
 
 module Pyramids
@@ -73,10 +73,16 @@ function handleCursorPos(cursorPos)
 end
 
 function demo()
-    resetDemo()
+    try
+        resetDemo()
+        runDemo()
+    finally
+        Renderer.shutdown()
+    end
+end
 
+function runDemo()
     window = Renderer.createWindow("ModernGL Example") #, monitorIndex=3)
-    Renderer.init()
 
     # Grab cursor.
     GLFW.SetInputMode(window, GLFW.CURSOR, GLFW.CURSOR_DISABLED)
@@ -93,7 +99,7 @@ function demo()
         (_, xpos, ypos) -> handleCursorPos([xpos, ypos])
     )
 
-    const shadersDir = joinpath("..", "shaders")
+    const shadersDir = "shaders"
     shader = Renderer.Shader(
         joinpath(shadersDir, "vert.glsl"),
         joinpath(shadersDir, "frag.glsl")
@@ -102,11 +108,13 @@ function demo()
     global camera = Renderer.Camera(GLFW.GetWindowSize(window))
     Renderer.bind(camera, shader)
 
+    texture = Renderer.Texture(joinpath("textures", "grass.jpg"))
+
     pyramidOne = Pyramid(shader)
     pyramidOne.pawn.pos = GLfloat[0, 0, 4]
     pyramidTwo = Pyramid(shader)
     pyramidTwo.pawn.pos = GLfloat[0, 4, 30]
-    plane = Plane(shader)
+    plane = Plane(shader, texture)
     plane.pawn.pos = GLfloat[-5, -2, -10]
     plane.pawn.scale = GLfloat[30, 1, 50]
 
@@ -141,8 +149,6 @@ function demo()
 
         GLFW.PollEvents()
     end
-
-    GLFW.Terminate()
 
     return
 end
@@ -182,9 +188,10 @@ function simulate(actors)
         end
 
         # Update OpenGL in thread that created context.
-        for actor in actors
-            Game.updateGpuBuffers(actor.pawn)
-        end
+        #TODO: Reenable once uniforms are no longer used.
+        # for actor in actors
+        #     Game.updateGpuBuffers(actor.pawn)
+        # end
 
         secsSinceUpdate -= chronon
 
